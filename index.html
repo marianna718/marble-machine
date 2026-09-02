@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Marble Machine</title>
+<meta name="description" content="A tiny hands-on training game about chance: pull marbles from a weighted bag and watch expected value show up on its own.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700&display=swap">
+<style>
+  :root {
+    --paper: #FFFDF6;
+    --ink: #2A2C35;
+    --mute: #686B78;
+    --card: #F5F2E6;
+    --line: #E2DECB;
+    --green: #2F9655;
+    --blue: #3F72CE;
+    --gold: #D9970F;
+    --red: #D6483E;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #1A1C26;
+      --ink: #ECEDF2;
+      --mute: #A3A6B4;
+      --card: #242736;
+      --line: #383C50;
+      --green: #5BC383;
+      --blue: #82A9F0;
+      --gold: #EFBC55;
+      --red: #F08076;
+    }
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Atkinson Hyperlegible", Verdana, sans-serif;
+    font-size: 1.08rem;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0 1.25rem;
+  }
+  .sheet { max-width: 40rem; margin: 0 auto; padding: 2.8rem 0 4rem; }
+
+  h1 {
+    font-family: "Fredoka", "Atkinson Hyperlegible", sans-serif;
+    font-weight: 600;
+    font-size: clamp(2rem, 6vw, 2.8rem);
+    line-height: 1.1;
+    margin: 0 0 0.4rem;
+  }
+  .subtitle { color: var(--mute); margin: 0 0 1.8rem; }
+  p { margin: 0 0 1rem; }
+  strong { font-weight: 700; }
+
+  .dot {
+    display: inline-block; width: 0.85em; height: 0.85em; border-radius: 50%;
+    vertical-align: baseline; position: relative; top: 0.06em; margin-right: 0.1em;
+  }
+  .dot.g { background: var(--green); }
+  .dot.b { background: var(--blue); }
+  .dot.y { background: var(--gold); }
+
+  .machine {
+    border: 2px solid var(--line);
+    border-radius: 16px;
+    padding: 1.4rem;
+    margin: 1.4rem 0;
+    background: var(--card);
+  }
+  .m-buttons { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0 0 1.2rem; }
+  .m-buttons button {
+    font-family: "Fredoka", sans-serif; font-weight: 500;
+    font-size: 1rem;
+    border: none; border-radius: 999px;
+    padding: 0.55rem 1.25rem;
+    background: var(--green); color: var(--paper);
+    cursor: pointer;
+  }
+  .m-buttons button.b100 { background: var(--blue); }
+  .m-buttons button.b1000 { background: var(--gold); }
+  .m-buttons button.quiet { background: transparent; color: var(--mute); border: 1.5px solid var(--line); }
+  .m-buttons button:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+  .m-result {
+    display: flex; align-items: center; gap: 0.9rem;
+    min-height: 3.4rem; margin-bottom: 1.1rem;
+  }
+  .m-marble {
+    width: 3rem; height: 3rem; border-radius: 50%;
+    background: var(--line); flex: none;
+    box-shadow: inset -0.5rem -0.5rem 0 rgba(0,0,0,0.12);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .m-marble.pop { animation: pop 0.25s ease-out; }
+    @keyframes pop { 0% { transform: scale(0.5); } 70% { transform: scale(1.12); } 100% { transform: scale(1); } }
+  }
+  .m-text { font-weight: 700; }
+  .m-text small { display: block; font-weight: 400; color: var(--mute); }
+
+  .m-row { display: grid; grid-template-columns: 6.8rem 1fr 4rem; gap: 0.7rem; align-items: center; margin: 0.45rem 0; font-size: 0.98rem; }
+  .m-row .lbl { font-weight: 700; white-space: nowrap; }
+  .m-bar { position: relative; height: 1.05rem; background: var(--paper); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+  .m-fill { position: absolute; inset: 0 auto 0 0; width: 0%; border-radius: 999px; }
+  .m-fill.g { background: var(--green); } .m-fill.b { background: var(--blue); } .m-fill.y { background: var(--gold); }
+  .m-tick { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); opacity: 0.55; }
+  .m-count { text-align: right; font-variant-numeric: tabular-nums; color: var(--mute); }
+  .m-note { font-size: 0.85rem; color: var(--mute); margin: 0.3rem 0 1rem; }
+  .m-ledger {
+    display: flex; flex-wrap: wrap; gap: 0.6rem 1.8rem;
+    border-top: 2px solid var(--line);
+    margin-top: 1.1rem; padding-top: 0.9rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .m-ledger div b { display: block; font-size: 1.25rem; }
+  .m-ledger .take b { color: var(--red); }
+
+  .math {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1rem 1.3rem;
+    margin: 1.4rem 0;
+    font-size: 0.98rem;
+  }
+  .math p:last-child { margin-bottom: 0; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 0.9em; }
+  .fin { border-top: 1px solid var(--line); margin-top: 2.4rem; padding-top: 1rem; font-size: 0.88rem; color: var(--mute); }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <h1>The Marble Machine</h1>
+  <p class="subtitle">A tiny training game about chance. Pull marbles, watch the average find you.</p>
+
+  <p>The bag holds <strong>10 marbles</strong>: <span class="dot g"></span><strong>6 green</strong> (win 1 point), <span class="dot b"></span><strong>3 blue</strong> (win 5), <span class="dot y"></span><strong>1 gold</strong> (win 20). Every pull costs <strong>5 points</strong>, and the marble always goes back in the bag afterward.</p>
+
+  <div class="machine">
+    <div class="m-buttons">
+      <button id="pull1">Pull 1 (–5)</button>
+      <button id="pull100" class="b100">Pull 100</button>
+      <button id="pull1000" class="b1000">Pull 1,000</button>
+      <button id="reset" class="quiet">Start over</button>
+    </div>
+    <div class="m-result">
+      <div class="m-marble" id="marble"></div>
+      <div class="m-text" id="resulttext">Nothing pulled yet.<small>Pull once and anything can happen. Pull a thousand times and something else happens.</small></div>
+    </div>
+    <div class="m-row"><span class="lbl"><span class="dot g"></span> Green</span><div class="m-bar"><div class="m-fill g" id="bar-g"></div><div class="m-tick" style="left:60%"></div></div><span class="m-count" id="n-g">0</span></div>
+    <div class="m-row"><span class="lbl"><span class="dot b"></span> Blue</span><div class="m-bar"><div class="m-fill b" id="bar-b"></div><div class="m-tick" style="left:30%"></div></div><span class="m-count" id="n-b">0</span></div>
+    <div class="m-row"><span class="lbl"><span class="dot y"></span> Gold</span><div class="m-bar"><div class="m-fill y" id="bar-y"></div><div class="m-tick" style="left:10%"></div></div><span class="m-count" id="n-y">0</span></div>
+    <p class="m-note">The dark ticks mark what the counting predicts: 60% – 30% – 10%. Watch the bars sneak toward them as pulls pile up.</p>
+    <div class="m-ledger">
+      <div><b id="lg-pulls">0</b>pulls</div>
+      <div><b id="lg-paid">0</b>you paid</div>
+      <div><b id="lg-won">0</b>you won back</div>
+      <div class="take"><b id="lg-take">0</b>machine kept</div>
+      <div><b id="lg-rtp">—</b>give-back so far</div>
+    </div>
+  </div>
+
+  <div class="math">
+    <p><strong>What this trains.</strong> The chance of each marble is just counting: 6/10, 3/10, 1/10. The <strong>expected value</strong> of a pull is each prize times its chance, added up:</p>
+    <p><code>(0.6 × 1) + (0.3 × 5) + (0.1 × 20) = 4.1 points</code></p>
+    <p>A pull costs 5 but is worth 4.1 — so the machine keeps 0.9 per pull on average, a give-back of <strong>82%</strong>. No single pull is ever worth 4.1 (you always get exactly 1, 5, or 20); the number only becomes visible when the pulls pile up. That's the law of large numbers — and it's why one player can beat a machine, but a crowd never does.</p>
+  </div>
+
+  <p class="fin">The bag has no memory, rare doesn't mean never, and 1-in-10 doesn't mean every 10th pull. Everything else is costume.</p>
+</div>
+
+<script>
+(function () {
+  var BAG = [
+    { key: "g", name: "GREEN", prize: 1 },
+    { key: "b", name: "BLUE", prize: 5 },
+    { key: "y", name: "GOLD", prize: 20 }
+  ];
+  var COST = 5;
+  var pulls = 0, paid = 0, won = 0;
+  var tally = { g: 0, b: 0, y: 0 };
+
+  function pullOne() {
+    var r = Math.floor(Math.random() * 10); // 10 marbles: 6 green, 3 blue, 1 gold
+    var m = r < 6 ? BAG[0] : (r < 9 ? BAG[1] : BAG[2]);
+    pulls += 1; paid += COST; won += m.prize; tally[m.key] += 1;
+    return m;
+  }
+
+  function colorOf(key) {
+    var names = { g: "--green", b: "--blue", y: "--gold" };
+    return "var(" + names[key] + ")";
+  }
+
+  function refresh(last, batch) {
+    ["g", "b", "y"].forEach(function (k) {
+      var pct = pulls ? (tally[k] / pulls) * 100 : 0;
+      document.getElementById("bar-" + k).style.width = pct.toFixed(1) + "%";
+      document.getElementById("n-" + k).textContent = tally[k];
+    });
+    document.getElementById("lg-pulls").textContent = pulls;
+    document.getElementById("lg-paid").textContent = paid;
+    document.getElementById("lg-won").textContent = won;
+    document.getElementById("lg-take").textContent = paid - won;
+    document.getElementById("lg-rtp").textContent =
+      pulls ? ((won / paid) * 100).toFixed(1) + "%" : "—";
+
+    var marble = document.getElementById("marble");
+    var text = document.getElementById("resulttext");
+    if (last) {
+      marble.style.background = colorOf(last.key);
+      marble.classList.remove("pop");
+      void marble.offsetWidth; // restart the pop animation
+      marble.classList.add("pop");
+      if (batch) {
+        text.innerHTML = batch + " pulls done! Last one: <b>" + last.name + "</b>" +
+          "<small>Look at the bars — and at what the machine kept.</small>";
+      } else {
+        var net = last.prize - COST;
+        text.innerHTML = last.name + "! You win " + last.prize + " point" +
+          (last.prize === 1 ? "" : "s") + "." +
+          "<small>This pull: paid 5, got " + last.prize + " back (" +
+          (net >= 0 ? "+" + net : net) + ").</small>";
+      }
+    } else {
+      marble.style.background = "var(--line)";
+      text.innerHTML = "Nothing pulled yet.<small>Pull once and anything can happen. Pull a thousand times and something else happens.</small>";
+    }
+  }
+
+  function batchPull(n) {
+    var last = null;
+    for (var i = 0; i < n; i++) last = pullOne();
+    refresh(last, n.toLocaleString());
+  }
+
+  document.getElementById("pull1").addEventListener("click", function () {
+    refresh(pullOne(), null);
+  });
+  document.getElementById("pull100").addEventListener("click", function () { batchPull(100); });
+  document.getElementById("pull1000").addEventListener("click", function () { batchPull(1000); });
+  document.getElementById("reset").addEventListener("click", function () {
+    pulls = 0; paid = 0; won = 0; tally = { g: 0, b: 0, y: 0 };
+    refresh(null, null);
+  });
+})();
+</script>
+</body>
+</html>
